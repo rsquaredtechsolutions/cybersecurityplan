@@ -105,43 +105,61 @@
 
     <div class="container">
         <h1 class="text-3xl font-bold text-center text-gray-800">Cybersecurity Plan Interview Tool</h1>
-        <div id="chat-box" class="chat-box">
-            <div class="message gemini-message">
-                Hello! I am a cybersecurity assistant designed to help you create a tailored cybersecurity plan for your K-12 school. To get started, please click the button below.
+        
+        <div id="api-key-container" class="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+            <label for="api-key-input" class="block text-sm font-medium text-yellow-800 mb-2">Enter your Gemini API Key to begin:</label>
+            <div class="flex gap-2">
+                <input type="password" id="api-key-input" class="flex-1 rounded-lg border border-yellow-300 px-3 py-2 text-sm text-yellow-800" placeholder="Paste your API key here...">
+                <button id="save-api-key-btn" class="btn btn-primary text-sm px-4 py-2">Save Key</button>
             </div>
+            <p id="api-key-status" class="mt-2 text-sm text-yellow-700 hidden"></p>
         </div>
 
-        <div id="controls" class="flex flex-col gap-4">
-            <button id="start-btn" class="btn btn-primary">Start Interview</button>
-            <div id="input-area" class="input-group hidden">
-                <textarea id="user-input" placeholder="Type your answer here..." rows="1" class="rounded-lg border border-gray-300 resize-none"></textarea>
-                <button id="send-btn" class="btn btn-primary flex items-center justify-center">Send</button>
-            </div>
-        </div>
-
-        <div id="plan-display" class="hidden mt-4 p-6 bg-gray-50 rounded-lg shadow-inner">
-            <h2 class="text-2xl font-semibold mb-4 text-gray-800">Generated Cybersecurity Plan</h2>
-            <div id="plan-content" class="prose max-w-none text-gray-700"></div>
-            <button id="download-btn" class="btn btn-secondary mt-4">Download Plan</button>
-        </div>
-
-        ---
-
-        <div id="threat-qa-section" class="hidden mt-4 p-6 bg-white rounded-lg shadow-inner">
-            <h2 class="text-2xl font-semibold mb-4 text-gray-800">✨ Threat Intelligence Q&A</h2>
-            <div id="threat-chat-box" class="chat-box" style="height: 250px;">
+        <div id="main-app" class="hidden">
+            <div id="chat-box" class="chat-box">
                 <div class="message gemini-message">
-                    Ask me any question about cybersecurity threats or best practices, and I'll provide an instant answer.
+                    Hello! I am a cybersecurity assistant designed to help you create a tailored cybersecurity plan for your K-12 school. To get started, please click the button below.
                 </div>
             </div>
-            <div class="input-group mt-4">
-                <textarea id="threat-input" placeholder="Ask a question..." rows="1" class="rounded-lg border border-gray-300 resize-none"></textarea>
-                <button id="threat-send-btn" class="btn btn-primary flex items-center justify-center">Ask Gemini ✨</button>
+
+            <div id="controls" class="flex flex-col gap-4">
+                <button id="start-btn" class="btn btn-primary">Start Interview</button>
+                <div id="input-area" class="input-group hidden">
+                    <textarea id="user-input" placeholder="Type your answer here..." rows="1" class="rounded-lg border border-gray-300 resize-none"></textarea>
+                    <button id="send-btn" class="btn btn-primary flex items-center justify-center">Send</button>
+                </div>
+            </div>
+
+            <div id="plan-display" class="hidden mt-4 p-6 bg-gray-50 rounded-lg shadow-inner">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-800">Generated Cybersecurity Plan</h2>
+                <div id="plan-content" class="prose max-w-none text-gray-700"></div>
+                <button id="download-btn" class="btn btn-secondary mt-4">Download Plan</button>
+            </div>
+
+            ---
+
+            <div id="threat-qa-section" class="hidden mt-4 p-6 bg-white rounded-lg shadow-inner">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-800">✨ Threat Intelligence Q&A</h2>
+                <div id="threat-chat-box" class="chat-box" style="height: 250px;">
+                    <div class="message gemini-message">
+                        Ask me any question about cybersecurity threats or best practices, and I'll provide an instant answer.
+                    </div>
+                </div>
+                <div class="input-group mt-4">
+                    <textarea id="threat-input" placeholder="Ask a question..." rows="1" class="rounded-lg border border-gray-300 resize-none"></textarea>
+                    <button id="threat-send-btn" class="btn btn-primary flex items-center justify-center">Ask Gemini ✨</button>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
+        const apiKeyInput = document.getElementById('api-key-input');
+        const saveApiKeyBtn = document.getElementById('save-api-key-btn');
+        const apiKeyStatus = document.getElementById('api-key-status');
+        const apiKeyContainer = document.getElementById('api-key-container');
+        const mainApp = document.getElementById('main-app');
+
         const chatBox = document.getElementById('chat-box');
         const startBtn = document.getElementById('start-btn');
         const inputArea = document.getElementById('input-area');
@@ -157,6 +175,7 @@
 
         let currentQuestionIndex = 0;
         let interviewData = {};
+        let geminiApiKey = localStorage.getItem('geminiApiKey') || '';
 
         const questions = [
             // General Information
@@ -184,7 +203,45 @@
             { type: 'text', topic: 'IncidentResponse', prompt: "How often do you perform data backups, and are they tested for restorability?" },
         ];
 
+        // API Key handling
+        if (geminiApiKey) {
+            apiKeyInput.value = '**********';
+            apiKeyStatus.textContent = "API key loaded from browser storage. Click 'Start Interview' to begin.";
+            apiKeyStatus.classList.remove('hidden');
+            apiKeyContainer.classList.add('bg-green-50', 'border-green-200');
+            apiKeyContainer.classList.remove('bg-yellow-50', 'border-yellow-200');
+            mainApp.classList.remove('hidden');
+        } else {
+            apiKeyStatus.textContent = "Please enter your Gemini API key to use this tool.";
+            apiKeyStatus.classList.remove('hidden');
+        }
+
+        saveApiKeyBtn.addEventListener('click', () => {
+            const key = apiKeyInput.value.trim();
+            if (key) {
+                geminiApiKey = key;
+                localStorage.setItem('geminiApiKey', key);
+                apiKeyStatus.textContent = "API key saved. Click 'Start Interview' to begin.";
+                apiKeyStatus.classList.remove('text-red-700', 'hidden');
+                apiKeyStatus.classList.add('text-green-700');
+                apiKeyInput.value = '**********';
+                apiKeyContainer.classList.add('bg-green-50', 'border-green-200');
+                apiKeyContainer.classList.remove('bg-yellow-50', 'border-yellow-200');
+                mainApp.classList.remove('hidden');
+            } else {
+                apiKeyStatus.textContent = "Please enter a valid API key.";
+                apiKeyStatus.classList.remove('text-green-700', 'hidden');
+                apiKeyStatus.classList.add('text-red-700');
+            }
+        });
+
         startBtn.addEventListener('click', () => {
+            if (!geminiApiKey) {
+                apiKeyStatus.textContent = "Please save your API key first.";
+                apiKeyStatus.classList.remove('text-green-700', 'hidden');
+                apiKeyStatus.classList.add('text-red-700');
+                return;
+            }
             startBtn.classList.add('hidden');
             inputArea.classList.remove('hidden');
             askNextQuestion();
@@ -271,8 +328,7 @@
                 tools: [{ "google_search": {} }],
                 systemInstruction: { parts: [{ text: systemPrompt }] },
             };
-            const apiKey = "";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${geminiApiKey}`;
 
             let planMarkdown = "There was an error generating the plan. Please try again.";
             let retryCount = 0;
@@ -326,8 +382,7 @@
                 tools: [{ "google_search": {} }],
                 systemInstruction: { parts: [{ text: systemPrompt }] },
             };
-            const apiKey = "";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${geminiApiKey}`;
 
             let answerText = "I'm sorry, I couldn't find an answer to that question. Please try rephrasing.";
             try {
